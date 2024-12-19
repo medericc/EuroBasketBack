@@ -15,8 +15,10 @@ class Team(db.Model):
     name = db.Column(db.String(255), nullable=False)
     league_id = db.Column(db.Integer, db.ForeignKey('leagues.id'), nullable=False)
     budget = db.Column(db.Numeric(15, 2), nullable=False, default=0)
+    logo = db.Column(db.Text, nullable=True)
     league = db.relationship('League', backref=db.backref('teams', lazy=True))
     events = db.relationship('Event', back_populates='team', lazy='dynamic')
+
 class Season(db.Model):
     __tablename__ = 'seasons'
     id = db.Column(db.Integer, primary_key=True)
@@ -108,9 +110,9 @@ class UserProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True)
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)  # Utiliser 'teams.id'
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
-    team = db.relationship('Team', backref=db.backref('user_profiles', lazy=True))
+    team = db.relationship('Team', backref=db.backref('user_profiles', lazy=True))  # Relation corrigée
 
 class Transfer(db.Model):
     __tablename__ = 'transfers'

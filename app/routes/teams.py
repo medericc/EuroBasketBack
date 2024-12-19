@@ -47,3 +47,14 @@ def get_team_details(id):
             } for player in team.players
         ]
     })
+@bp.route('/league/<int:league_id>', methods=['GET'])
+def get_teams_by_league(league_id):
+    teams = Team.query.filter_by(league_id=league_id).all()
+    if not teams:
+        return jsonify({"error": "No teams found for this league"}), 404
+    return jsonify([{
+        "id": team.id,
+        "name": team.name,
+        "budget": str(team.budget),
+        "logo": team.logo  # Inclure le logo
+    } for team in teams])

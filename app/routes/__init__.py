@@ -5,3 +5,5 @@ from .games import bp as games
 from .transfers import bp as transfers
 from .events import bp as events 
 from .career import bp as career 
+from .users import bp as users 
+from .auth import bp as auth 
