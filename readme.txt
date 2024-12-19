@@ -29,3 +29,17 @@ public class APIManager : MonoBehaviour
         }
     }
 }
+
+8. Événements et Progression
+Routes :
+GET /events : Liste des événements (blessures, records, etc.).
+POST /events : Ajouter un événement à un joueur ou une équipe.
+GET /events/player/:player_id : Historique des événements d’un joueur.
+Pourquoi ? Pour simuler des aléas ou moments marquants dans la carrière.
+
+9. Progression de la Carrière
+Routes :
+GET /career : Obtenir les détails de la carrière de l’entraîneur.
+POST /career/advance : Avancer dans la carrière (saison suivante).
+POST /career/goals : Ajouter des objectifs pour la saison.
+GET /career/goals : Récupérer les objectifs actuels.

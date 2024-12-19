@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
-db = SQLAlchemy()
+from app import db
 
 class League(db.Model):
     __tablename__ = 'leagues'
@@ -16,7 +16,7 @@ class Team(db.Model):
     league_id = db.Column(db.Integer, db.ForeignKey('leagues.id'), nullable=False)
     budget = db.Column(db.Numeric(15, 2), nullable=False, default=0)
     league = db.relationship('League', backref=db.backref('teams', lazy=True))
-
+    events = db.relationship('Event', back_populates='team', lazy='dynamic')
 class Season(db.Model):
     __tablename__ = 'seasons'
     id = db.Column(db.Integer, primary_key=True)
@@ -34,7 +34,15 @@ class Player(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'))
     birth_date = db.Column(db.Date, nullable=False)
     market_value = db.Column(db.Numeric(15, 2), nullable=False, default=0)
+    
+    # Relation avec Team
     team = db.relationship('Team', backref=db.backref('players', lazy=True))
+    
+    # Relation avec Event
+    events = db.relationship('Event', back_populates='player', lazy='dynamic')
+    
+    # Relation avec PlayerEvent (backref défini dans PlayerEvent)
+    player_events = db.relationship('PlayerEvent', back_populates='player', lazy='dynamic')
 
 class PlayerStat(db.Model):
     __tablename__ = 'player_stats'
@@ -135,8 +143,52 @@ class PlayerEvent(db.Model):
     event_type = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     date = db.Column(db.DateTime(timezone=True), nullable=False)
-    player = db.relationship('Player', backref=db.backref('events', lazy=True))
-    season = db.relationship('Season', backref=db.backref('player_events', lazy=True))
+    
+    # Relation avec Player
+    player = db.relationship('Player', backref=db.backref('events_log', lazy='dynamic'))
+    
+    # Relation avec Season
+    season = db.relationship('Season', backref=db.backref('player_events', lazy='dynamic'))
 
 class Finance(db.Model):
-    __tablename__ =
+    __tablename__ = 'finances'
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    season_id = db.Column(db.Integer, db.ForeignKey('seasons.id'), nullable=False)
+    revenue = db.Column(db.Numeric(15, 2), default=0)
+    expenses = db.Column(db.Numeric(15, 2), default=0)
+
+    team = db.relationship('Team', backref='finances')
+    season = db.relationship('Season', backref='finances')
+
+    def __repr__(self):
+        return f"<Finance id={self.id}, team_id={self.team_id}, season_id={self.season_id}, revenue={self.revenue}, expenses={self.expenses}>"
+
+
+class PlayerPosition(db.Model):
+    __tablename__ = 'player_positions'
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
+    position = db.Column(db.String(2), nullable=False)
+
+    player = db.relationship('Player', backref='positions')
+
+    def __repr__(self):
+        return f"<PlayerPosition id={self.id}, player_id={self.player_id}, position={self.position}>"
+
+class Event(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(255), nullable=False)
+    date = db.Column(db.Date, default=datetime.utcnow, nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
+    player = db.relationship('Player', back_populates='events')
+    team = db.relationship('Team', back_populates='events')
+
+class SeasonGoal(db.Model):
+    __tablename__ = 'season_goals'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), nullable=False)
+    season_id = db.Column(db.Integer, db.ForeignKey('seasons.id'), nullable=False)
+    goal_text = db.Column(db.Text, nullable=False)

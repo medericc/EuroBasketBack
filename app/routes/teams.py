@@ -28,3 +28,22 @@ def create_team():
         return jsonify({"message": "Team created"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+@bp.route('/<int:id>', methods=['GET'])
+def get_team_details(id):
+    team = Team.query.get(id)
+    if not team:
+        return jsonify({"error": "Team not found"}), 404
+    return jsonify({
+        "id": team.id,
+        "name": team.name,
+        "league_id": team.league_id,
+        "budget": str(team.budget),
+        "players": [
+            {
+                "id": player.id,
+                "first_name": player.first_name,
+                "last_name": player.last_name,
+                "position": player.position
+            } for player in team.players
+        ]
+    })
