@@ -1,7 +1,7 @@
 # transferts entre équipes
 from flask import Blueprint, request, jsonify
-from app.models import Transfer, db
-
+from app.models import Transfer
+from app import db
 bp = Blueprint('transfers', __name__, url_prefix='/transfers')
 
 @bp.route('/', methods=['GET'])

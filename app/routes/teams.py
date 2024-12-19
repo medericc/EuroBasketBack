@@ -1,7 +1,7 @@
 # team gerer
 from flask import Blueprint, request, jsonify
-from app.models import Team, db
-
+from app.models import Team
+from app import db
 bp = Blueprint('teams', __name__, url_prefix='/teams')
 
 @bp.route('/', methods=['GET'])

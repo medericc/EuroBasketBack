@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app.models import Finance, Team, db
-
+from app.models import Finance, Team
+from app import db
 bp = Blueprint('finances', __name__, url_prefix='/finances')
 
 @bp.route('/team/<int:team_id>', methods=['GET'])

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app.models import db, UserProfile, Team
-
+from app.models import  UserProfile, Team
+from app import db
 users_bp = Blueprint('users', __name__)
 
 @users_bp.route('/users', methods=['POST'])

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app.models import db, Event, Player, Team
-
+from app.models import Event, Player, Team
+from app import db
 # Définition du blueprint pour les routes des événements
 bp = Blueprint('events', __name__)
 

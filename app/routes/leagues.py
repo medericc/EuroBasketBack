@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
-from app.models import db, League
-
+from app.models import  League
+from app import db
 # Définition du blueprint pour les routes des ligues
 leagues_bp = Blueprint('leagues', __name__)
 

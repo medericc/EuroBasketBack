@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app.models import db, UserProfile, Season, TeamSeason
-
+from app.models import UserProfile, Season, TeamSeason
+from app import db
 bp = Blueprint('career', __name__, url_prefix='/career')
 
 # Obtenir les détails de la carrière de l'entraîneur

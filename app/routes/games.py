@@ -1,7 +1,7 @@
 # gerer les matchs 
 from flask import Blueprint, request, jsonify
-from app.models import Game, GameStat, db
-
+from app.models import Game, GameStat
+from app import db
 bp = Blueprint('games', __name__, url_prefix='/games')
 
 @bp.route('/', methods=['GET'])
