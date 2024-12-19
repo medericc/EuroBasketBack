@@ -72,3 +72,60 @@ def update_user_team(user_id):
             }
         }
     }), 200
+@bp.route('/users/<int:user_id>', methods=['GET', 'PUT'])
+def handle_user(user_id):
+    """
+    Gestion des opérations utilisateur :
+    - GET : Récupère les informations de l'utilisateur.
+    - PUT : Met à jour l'équipe associée à un utilisateur.
+    """
+    if request.method == 'GET':
+        # Vérification si l'utilisateur existe
+        user = UserProfile.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Utilisateur non trouvé.'}), 404
+
+        # Construction de la réponse
+        return jsonify({
+            'id': user.id,
+            'user_name': user.user_name,
+            'email': user.email,
+            'team': {
+                'id': user.team.id if user.team else None,
+                'name': user.team.name if user.team else None,
+                'logo': user.team.logo if user.team else None
+            } if user.team else None
+        }), 200
+
+    elif request.method == 'PUT':
+        data = request.get_json()
+
+        # Vérification si l'utilisateur existe
+        user = UserProfile.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Utilisateur non trouvé.'}), 404
+
+        # Vérification si l'équipe existe
+        if not data.get('team_id'):
+            return jsonify({'error': 'team_id est requis.'}), 400
+
+        team = Team.query.get(data['team_id'])
+        if not team:
+            return jsonify({'error': 'Équipe non trouvée.'}), 404
+
+        # Mise à jour de l'équipe
+        user.team_id = team.id
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Équipe mise à jour avec succès.',
+            'user': {
+                'id': user.id,
+                'user_name': user.user_name,
+                'email': user.email,
+                'team': {
+                    'id': team.id,
+                    'name': team.name
+                }
+            }
+        }), 200
