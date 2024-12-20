@@ -17,50 +17,73 @@ def get_games():
         "away_score": game.away_score
     } for game in games])
 
-@bp.route('/', methods=['POST'])
+@bp.route('/', methods=['POST', 'OPTIONS'])
 def create_game():
     data = request.json
+    logger.info("Requête reçue pour créer un jeu.")
+    
     try:
+        # Journal des données reçues
+        logger.debug(f"Données reçues : {data}")
+        
+        # Vérification si le match existe déjà
+        existing_game = Game.query.filter_by(
+            season_id=data.get("season_id"),
+            home_team_id=data.get("home_team_id"),
+            away_team_id=data.get("away_team_id"),
+            date=data.get("date")
+        ).first()
+
+        if existing_game:
+            logger.warning(f"Match déjà existant : {existing_game}")
+            return jsonify({"message": "Match already exists"}), 400
+
         # Création du match
         new_game = Game(
-            season_id=data['season_id'],
-            home_team_id=data['home_team_id'],
-            away_team_id=data['away_team_id'],
-            date=data['date'],
-            home_score=data.get('home_score', 0),
-            away_score=data.get('away_score', 0)
+            season_id=data["season_id"],
+            home_team_id=data["home_team_id"],
+            away_team_id=data["away_team_id"],
+            date=data["date"],
+            home_score=data.get("home_score", 0),
+            away_score=data.get("away_score", 0)
         )
         db.session.add(new_game)
-        db.session.flush()  # Permet d'obtenir l'ID du match avant la validation finale
+        db.session.commit()
+        logger.info(f"Nouveau match créé avec succès : {new_game}")
 
         # Ajout des statistiques des joueurs
-        player_stats = data.get('player_stats', [])
-        for stats in player_stats:
-            game_stat = GameStat(
-                game_id=new_game.id,
-                player_id=stats['player_id'],
-                points=stats.get('points', 0),
-                rebounds=stats.get('rebounds', 0),
-                assists=stats.get('assists', 0),
-                minutes_played=stats.get('minutes_played', 0),
-                fgm=stats.get('fgm', 0),
-                fga=stats.get('fga', 0),
-                threepm=stats.get('threepm', 0),
-                threepa=stats.get('threepa', 0),
-                ftm=stats.get('ftm', 0),
-                fta=stats.get('fta', 0),
-                steals=stats.get('steals', 0),
-                blocks=stats.get('blocks', 0),
-                turnovers=stats.get('turnovers', 0)
-            )
-            db.session.add(game_stat)
+        if "player_stats" in data:
+            for stats in data["player_stats"]:
+                logger.debug(f"Ajout des statistiques pour le joueur {stats['player_id']}")
+                new_stat = GameStat(
+                    game_id=new_game.id,
+                    player_id=stats["player_id"],
+                    points=stats.get("points", 0),
+                    rebounds=stats.get("rebounds", 0),
+                    assists=stats.get("assists", 0),
+                    minutes_played=stats.get("minutes_played", 0),
+                    fgm=stats.get("fgm", 0),
+                    fga=stats.get("fga", 0),
+                    threepm=stats.get("threepm", 0),
+                    threepa=stats.get("threepa", 0),
+                    ftm=stats.get("ftm", 0),
+                    fta=stats.get("fta", 0),
+                    steals=stats.get("steals", 0),
+                    blocks=stats.get("blocks", 0),
+                    turnovers=stats.get("turnovers", 0),
+                )
+                db.session.add(new_stat)
 
-        db.session.commit()
-        return jsonify({"message": "Game and player stats created"}), 201
+            db.session.commit()
+            logger.info(f"Statistiques des joueurs ajoutées pour le match {new_game.id}")
+
+        return jsonify({"message": "Game created successfully", "game_id": new_game.id}), 201
 
     except Exception as e:
+        logger.error(f"Erreur lors de la création du match : {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"message": "An error occurred while creating the game"}), 500
+
 
 @bp.route('/<int:id>', methods=['GET'])
 def get_game_details(id):

@@ -7,3 +7,4 @@ from .events import bp as events
 from .career import bp as career 
 from .users import bp as users 
 from .auth import bp as auth 
+from .gamestats import bp as gamestats 

@@ -80,9 +80,13 @@ class Game(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     home_score = db.Column(db.Integer, nullable=False, default=0)
     away_score = db.Column(db.Integer, nullable=False, default=0)
+
+    # Relations avec les saisons et les équipes
     season = db.relationship('Season', backref=db.backref('games', lazy=True))
-    home_team = db.relationship('Team', foreign_keys=[home_team_id])
-    away_team = db.relationship('Team', foreign_keys=[away_team_id])
+    
+    # Relations spécifiques pour les équipes à domicile et à l'extérieur
+    home_team = db.relationship('Team', foreign_keys=[home_team_id], backref=db.backref('home_games', lazy=True))
+    away_team = db.relationship('Team', foreign_keys=[away_team_id], backref=db.backref('away_games', lazy=True))
 
 class GameStat(db.Model):
     __tablename__ = 'game_stats'
