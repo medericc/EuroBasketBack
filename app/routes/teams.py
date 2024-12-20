@@ -58,3 +58,43 @@ def get_teams_by_league(league_id):
         "budget": str(team.budget),
         "logo": team.logo  # Inclure le logo
     } for team in teams])
+@bp.route('/team/<int:team_id>', methods=['GET'])
+def get_players_by_team(team_id):
+    players = Player.query.filter_by(team_id=team_id).all()
+    if not players:
+        return jsonify({"error": "No players found for this team"}), 404
+    
+    # Récupérer les statistiques de chaque joueur
+    players_with_stats = []
+    for player in players:
+        stats = PlayerStat.query.filter_by(player_id=player.id).all()
+        player_stats = [{
+            "games_played": stat.games_played,
+            "ppg": str(stat.ppg),
+            "apg": str(stat.apg),
+            "rpg": str(stat.rpg),
+            "minutes_played": stat.minutes_played,
+            "fgm": str(stat.fgm),
+            "fga": str(stat.fga),
+            "fg_pct": str(stat.fg_pct),
+            "threepm": str(stat.threepm),
+            "threepa": str(stat.threepa),
+            "three_pct": str(stat.three_pct),
+            "ftm": str(stat.ftm),
+            "fta": str(stat.fta),
+            "ft_pct": str(stat.ft_pct),
+            "steals": str(stat.steals),
+            "blocks": str(stat.blocks),
+            "turnovers": str(stat.turnovers)
+        } for stat in stats]
+
+        players_with_stats.append({
+            "id": player.id,
+            "first_name": player.first_name,
+            "last_name": player.last_name,
+            "position": player.position,
+            "market_value": str(player.market_value),
+            "stats": player_stats
+        })
+
+    return jsonify(players_with_stats)
