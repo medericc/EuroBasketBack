@@ -116,6 +116,7 @@ class UserProfile(db.Model):
     email = db.Column(db.String(255), nullable=False, unique=True)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)  # Utiliser 'teams.id'
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    db_url = db.Column(db.String(255), nullable=True)
     team = db.relationship('Team', backref=db.backref('user_profiles', lazy=True))  # Relation corrigée
 
 class Transfer(db.Model):

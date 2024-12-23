@@ -1,103 +1,135 @@
+
 from flask import Blueprint, request, jsonify
-from app.models import UserProfile, Season, TeamSeason
-from app import db
-bp = Blueprint('career', __name__, url_prefix='/career')
+from app import get_dynamic_model, db
 
-# Obtenir les détails de la carrière de l'entraîneur
-@bp.route('/', methods=['GET'])
-def get_career_details():
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
+bp = Blueprint('goals', __name__, url_prefix='/goals')
 
-    user_profile = UserProfile.query.get(user_id)
-    if not user_profile:
-        return jsonify({"error": "User not found"}), 404
-
-    team_seasons = TeamSeason.query.filter_by(team_id=user_profile.team_id).all()
-    career_details = {
-        "user_name": user_profile.user_name,
-        "email": user_profile.email,
-        "team": user_profile.team.name,
-        "team_seasons": [{
-            "season_id": ts.season_id,
-            "wins": ts.wins,
-            "losses": ts.losses,
-            "budget_remaining": str(ts.budget_remaining)
-        } for ts in team_seasons]
-    }
-
-    return jsonify(career_details), 200
-
-# Avancer dans la carrière (saison suivante)
-@bp.route('/advance', methods=['POST'])
-def advance_career():
-    data = request.json
-    user_id = data.get('user_id')
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
-
-    user_profile = UserProfile.query.get(user_id)
-    if not user_profile:
-        return jsonify({"error": "User not found"}), 404
-
-    current_season = db.session.query(Season).order_by(Season.end_year.desc()).first()
-    next_season = Season(start_year=current_season.end_year + 1, end_year=current_season.end_year + 2)
-    db.session.add(next_season)
-
-    team_season = TeamSeason(
-        team_id=user_profile.team_id,
-        season_id=next_season.id,
-        budget_remaining=user_profile.team.budget
+def get_models(username, user_db_url):
+    """Récupère les modèles dynamiques nécessaires"""
+    models = get_dynamic_model(username, user_db_url)
+    return (
+        models.get('season_goals'),
+        models.get('seasons'),
+        models.get('user_profile')
     )
-    db.session.add(team_season)
-    db.session.commit()
 
-    return jsonify({"message": "Career advanced to the next season"}), 200
-
-# Ajouter des objectifs pour la saison
-@bp.route('/goals', methods=['POST'])
-def add_season_goals():
-    data = request.json
-    user_id = data.get('user_id')
-    goals = data.get('goals')
-
-    if not user_id or not goals:
-        return jsonify({"error": "User ID and goals are required"}), 400
-
-    user_profile = UserProfile.query.get(user_id)
-    if not user_profile:
-        return jsonify({"error": "User not found"}), 404
-
-    current_season = db.session.query(Season).order_by(Season.end_year.desc()).first()
-
-    # Simulez une table pour stocker les objectifs
-    # Par exemple, une table `SeasonGoals` avec `user_id`, `season_id` et `goal_text`.
-
-    # Exemple de sauvegarde d'objectifs
-    for goal in goals:
-        new_goal = SeasonGoal(user_id=user_id, season_id=current_season.id, goal_text=goal)
-        db.session.add(new_goal)
-
-    db.session.commit()
-
-    return jsonify({"message": "Goals added for the season"}), 201
-
-# Récupérer les objectifs actuels
-@bp.route('/goals', methods=['GET'])
+@bp.route('/', methods=['GET'])
 def get_season_goals():
+    """Récupérer les objectifs de la saison actuelle"""
+    username = request.args.get('username')
+    user_db_url = request.args.get('user_db_url')
     user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
+    
+    if not all([username, user_db_url, user_id]):
+        return jsonify({'error': 'username, user_db_url et user_id sont requis'}), 400
+        
+    SeasonGoal, Season, UserProfile = get_models(username, user_db_url)
+    if not all([SeasonGoal, Season, UserProfile]):
+        return jsonify({'error': 'Tables de carrière non trouvées'}), 404
 
-    user_profile = UserProfile.query.get(user_id)
-    if not user_profile:
-        return jsonify({"error": "User not found"}), 404
+    # Récupérer la saison actuelle
+    current_season = Season.query.order_by(Season.end_year.desc()).first()
+    if not current_season:
+        return jsonify({'error': 'Aucune saison trouvée'}), 404
 
-    current_season = db.session.query(Season).order_by(Season.end_year.desc()).first()
-    goals = SeasonGoal.query.filter_by(user_id=user_id, season_id=current_season.id).all()
+    # Récupérer les objectifs
+    goals = SeasonGoal.query.filter_by(
+        user_id=user_id,
+        season_id=current_season.id
+    ).all()
 
     return jsonify([{
-        "id": goal.id,
-        "goal_text": goal.goal_text
+        'id': goal.id,
+        'goal_text': goal.goal_text,
+        'season_id': goal.season_id,
+        'completed': goal.completed
     } for goal in goals]), 200
+
+@bp.route('/', methods=['POST'])
+def create_season_goals():
+    """Créer de nouveaux objectifs pour la saison"""
+    username = request.args.get('username')
+    user_db_url = request.args.get('user_db_url')
+    data = request.json
+    
+    if not all([username, user_db_url]):
+        return jsonify({'error': 'username et user_db_url sont requis'}), 400
+    
+    if not all([data.get('user_id'), data.get('goals')]):
+        return jsonify({'error': 'user_id et goals sont requis'}), 400
+
+    SeasonGoal, Season, UserProfile = get_models(username, user_db_url)
+    if not all([SeasonGoal, Season, UserProfile]):
+        return jsonify({'error': 'Tables de carrière non trouvées'}), 404
+
+    try:
+        # Récupérer la saison actuelle
+        current_season = Season.query.order_by(Season.end_year.desc()).first()
+        if not current_season:
+            return jsonify({'error': 'Aucune saison trouvée'}), 404
+
+        # Créer les nouveaux objectifs
+        new_goals = []
+        for goal_text in data['goals']:
+            goal = SeasonGoal(
+                user_id=data['user_id'],
+                season_id=current_season.id,
+                goal_text=goal_text,
+                completed=False
+            )
+            db.session.add(goal)
+            new_goals.append(goal)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Objectifs créés avec succès',
+            'goals': [{
+                'id': goal.id,
+                'goal_text': goal.goal_text,
+                'season_id': goal.season_id,
+                'completed': goal.completed
+            } for goal in new_goals]
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+@bp.route('/<int:goal_id>', methods=['PUT'])
+def update_goal_status(goal_id):
+    """Mettre à jour le statut d'un objectif"""
+    username = request.args.get('username')
+    user_db_url = request.args.get('user_db_url')
+    data = request.json
+    
+    if not all([username, user_db_url]):
+        return jsonify({'error': 'username et user_db_url sont requis'}), 400
+
+    SeasonGoal, _, _ = get_models(username, user_db_url)
+    if not SeasonGoal:
+        return jsonify({'error': 'Tables de carrière non trouvées'}), 404
+
+    try:
+        goal = SeasonGoal.query.get(goal_id)
+        if not goal:
+            return jsonify({'error': 'Objectif non trouvé'}), 404
+
+        if 'completed' in data:
+            goal.completed = data['completed']
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Objectif mis à jour avec succès',
+            'goal': {
+                'id': goal.id,
+                'goal_text': goal.goal_text,
+                'season_id': goal.season_id,
+                'completed': goal.completed
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400

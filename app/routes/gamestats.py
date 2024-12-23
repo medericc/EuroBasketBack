@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from app import get_dynamic_model, db
 from flask import current_app as app
 from app.models import GameStat, PlayerStat, Player, Season, Game
 

@@ -10,30 +10,72 @@ def create_user():
     """
     data = request.get_json()
 
-    # Vérification des données
+    # Vérification des données obligatoires
     if not data.get('user_name') or not data.get('email'):
-        return jsonify({'error': 'user_name et email sont requis.'}), 400
+        return jsonify({'error': 'Les champs user_name et email sont requis.'}), 400
+
+    # Vérifie si l'utilisateur existe déjà (par exemple, avec l'email)
+    existing_user = UserProfile.query.filter_by(email=data['email']).first()
+    if existing_user:
+        return jsonify({'error': 'Un utilisateur avec cet email existe déjà.'}), 400
 
     # Création de l'utilisateur sans équipe
     user = UserProfile(
         user_name=data['user_name'],
         email=data['email'],
+        db_url=data.get('user_name'),  # Peut être défini ou None
         team_id=None  # Pas d'équipe associée pour le moment
     )
 
-    db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f"Erreur lors de la création de l'utilisateur : {str(e)}"}), 500
 
+    # Retourne les détails de l'utilisateur créé
     return jsonify({
         'message': 'Utilisateur créé avec succès.',
         'user': {
             'id': user.id,
             'user_name': user.user_name,
             'email': user.email,
-            'team': None  # Pas d'équipe associée
+            'team': None  # Pas d'équipe associée pour l'instant
         }
     }), 201
 
+@bp.route('/users/<int:user_id>/team', methods=['PUT'])
+def assign_team(user_id):
+    """
+    Associe un utilisateur à une équipe.
+    """
+    data = request.get_json()
+    team_id = data.get('team_id')
+
+    if not team_id:
+        return jsonify({'error': 'team_id est requis.'}), 400
+
+    user = UserProfile.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Utilisateur introuvable.'}), 404
+
+    try:
+        user.team_id = team_id
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f"Erreur lors de l'association de l'équipe : {str(e)}"}), 500
+
+    return jsonify({
+        'message': 'Équipe associée avec succès.',
+        'user': {
+            'id': user.id,
+            'user_name': user.user_name,
+            'email': user.email,
+            'team_id': user.team_id
+        }
+    }), 200
 
 
 @bp.route('/users/<int:user_id>', methods=['PUT'])
@@ -72,6 +114,7 @@ def update_user_team(user_id):
             }
         }
     }), 200
+
 @bp.route('/users/<int:user_id>', methods=['GET', 'PUT'])
 def handle_user(user_id):
     """
@@ -80,16 +123,17 @@ def handle_user(user_id):
     - PUT : Met à jour l'équipe associée à un utilisateur.
     """
     if request.method == 'GET':
-        # Vérification si l'utilisateur existe
+         # Vérification si l'utilisateur existe
         user = UserProfile.query.get(user_id)
         if not user:
             return jsonify({'error': 'Utilisateur non trouvé.'}), 404
 
-        # Construction de la réponse
+    # Construction de la réponse
         return jsonify({
             'id': user.id,
-            'user_name': user.user_name,
+            'username': user.user_name,
             'email': user.email,
+            'db_url': user.db_url,  # Inclure le db_url dans la réponse
             'team': {
                 'id': user.team.id if user.team else None,
                 'name': user.team.name if user.team else None,
