@@ -44,6 +44,7 @@ def init_db(app):
     user_db_name = f"career_{user_identifier}_"
     user_db_url = db_url_prefix + user_db_name
 
+
     # Utilise une URL d'administration pour se connecter au serveur PostgreSQL
     admin_db_url = os.getenv('ADMIN_DB_URL')  # URL pour administrer PostgreSQL
     if not admin_db_url:

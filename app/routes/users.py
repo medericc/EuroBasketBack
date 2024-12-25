@@ -48,35 +48,56 @@ def create_user():
 @bp.route('/users/<int:user_id>/team', methods=['PUT'])
 def assign_team(user_id):
     """
-    Associe un utilisateur à une équipe.
+    Associe un utilisateur à une équipe dans la base `career_basket`.
     """
-    data = request.get_json()
-    team_id = data.get('team_id')
+    # Charger l'URL de la base dynamique
+    db_url_prefix = os.getenv('DB_URL_PREFIX')
+    career_db_name = "career_basket"
+    career_db_url = f"{db_url_prefix}{career_db_name}"
 
-    if not team_id:
-        return jsonify({'error': 'team_id est requis.'}), 400
-
-    user = UserProfile.query.get(user_id)
-    if not user:
-        return jsonify({'error': 'Utilisateur introuvable.'}), 404
+    # Créer un moteur SQLAlchemy pour la base `career_basket`
+    engine = create_engine(career_db_url)
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     try:
+        # Récupérer les données de la requête
+        data = request.get_json()
+        team_id = data.get('team_id')
+
+        if not team_id:
+            return jsonify({'error': 'team_id est requis.'}), 400
+
+        # Rechercher l'utilisateur et l'équipe
+        user = session.query(UserProfile).get(user_id)
+        if not user:
+            return jsonify({'error': 'Utilisateur introuvable.'}), 404
+
+        team = session.query(Team).get(team_id)
+        if not team:
+            return jsonify({'error': 'Équipe introuvable.'}), 404
+
+        # Associer l'équipe à l'utilisateur
         user.team_id = team_id
-        db.session.commit()
+        session.commit()
+
+        return jsonify({
+            'message': 'Équipe associée avec succès.',
+            'user': {
+                'id': user.id,
+                'user_name': user.user_name,
+                'email': user.email,
+                'team_id': user.team_id,
+                'team_name': team.name
+            }
+        }), 200
+
     except Exception as e:
-        db.session.rollback()
+        session.rollback()
         return jsonify({'error': f"Erreur lors de l'association de l'équipe : {str(e)}"}), 500
 
-    return jsonify({
-        'message': 'Équipe associée avec succès.',
-        'user': {
-            'id': user.id,
-            'user_name': user.user_name,
-            'email': user.email,
-            'team_id': user.team_id
-        }
-    }), 200
-
+    finally:
+        session.close()
 
 @bp.route('/users/<int:user_id>', methods=['PUT'])
 def update_user_team(user_id):

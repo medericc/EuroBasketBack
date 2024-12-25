@@ -39,13 +39,13 @@ class Player(db.Model):
     
     # Relation avec Team
     team = db.relationship('Team', backref=db.backref('players', lazy=True))
-    
+      # Relation avec PlayerEvent (backref défini dans PlayerEvent)
+    player_events = db.relationship('PlayerEvent', back_populates='player', lazy='dynamic')
+
     # Relation avec Event
     events = db.relationship('Event', back_populates='player', lazy='dynamic')
     
-    # Relation avec PlayerEvent (backref défini dans PlayerEvent)
-    player_events = db.relationship('PlayerEvent', back_populates='player', lazy='dynamic')
-
+  
 class PlayerStat(db.Model):
     __tablename__ = 'player_stats'
     id = db.Column(db.Integer, primary_key=True)
@@ -80,14 +80,14 @@ class Game(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     home_score = db.Column(db.Integer, nullable=False, default=0)
     away_score = db.Column(db.Integer, nullable=False, default=0)
+  # Relations spécifiques pour les équipes à domicile et à l'extérieur
+    home_team = db.relationship('Team', foreign_keys=[home_team_id], backref=db.backref('home_games', lazy=True))
+    away_team = db.relationship('Team', foreign_keys=[away_team_id], backref=db.backref('away_games', lazy=True))
 
     # Relations avec les saisons et les équipes
     season = db.relationship('Season', backref=db.backref('games', lazy=True))
     
-    # Relations spécifiques pour les équipes à domicile et à l'extérieur
-    home_team = db.relationship('Team', foreign_keys=[home_team_id], backref=db.backref('home_games', lazy=True))
-    away_team = db.relationship('Team', foreign_keys=[away_team_id], backref=db.backref('away_games', lazy=True))
-
+  
 class GameStat(db.Model):
     __tablename__ = 'game_stats'
     id = db.Column(db.Integer, primary_key=True)
@@ -116,7 +116,6 @@ class UserProfile(db.Model):
     email = db.Column(db.String(255), nullable=False, unique=True)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)  # Utiliser 'teams.id'
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
-    db_url = db.Column(db.String(255), nullable=True)
     team = db.relationship('Team', backref=db.backref('user_profiles', lazy=True))  # Relation corrigée
 
 class Transfer(db.Model):
