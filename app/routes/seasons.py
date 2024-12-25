@@ -1,12 +1,12 @@
 from flask import Blueprint, request, jsonify
-from app import get_dynamic_model, db
+from app import  db
 from utils.season_validators import validate_season_data
 
 bp = Blueprint('seasons', __name__, url_prefix='/seasons')
 
 def get_models(username, user_db_url):
     """Récupère les modèles dynamiques nécessaires"""
-    models = get_dynamic_model(username, user_db_url)
+    models = (username, user_db_url)
     return models.get('seasons'), models.get('leagues')
 
 @bp.route('/', methods=['GET'])

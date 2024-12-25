@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
-from app import get_dynamic_model, db
+from app import  db
 
 bp = Blueprint('teams', __name__)
 
 def get_team_model(username, user_db_url):
     """Récupère le modèle Team dynamique pour un utilisateur"""
-    models = get_dynamic_model(username, user_db_url)
+    models = (username, user_db_url)
     return models.get('teams')
 @bp.route('/teams', methods=['GET'])
 def get_all_teams():
@@ -31,7 +31,7 @@ def get_teams_by_league(league_id):
         return jsonify({'error': 'username et user_db_url sont requis'}), 400
 
     try:
-        Team = get_dynamic_model('teams', user_db_url)
+        Team = ('teams', user_db_url)
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
 

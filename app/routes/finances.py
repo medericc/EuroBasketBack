@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
-from app import get_dynamic_model, db
+from app import , db
 
 bp = Blueprint('finances', __name__, url_prefix='/finances')
 
 def get_models(username, user_db_url):
     """Récupère les modèles dynamiques nécessaires"""
-    models = get_dynamic_model(username, user_db_url)
+    models = (username, user_db_url)
     return models.get('finances'), models.get('teams')
 
 @bp.route('/team/<int:team_id>', methods=['GET'])
