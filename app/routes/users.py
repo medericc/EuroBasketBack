@@ -23,7 +23,7 @@ def create_user():
     user = UserProfile(
         user_name=data['user_name'],
         email=data['email'],
-        db_url=data.get('user_name'),  # Peut être défini ou None
+        # Peut être défini ou None
         team_id=None  # Pas d'équipe associée pour le moment
     )
 
@@ -154,7 +154,7 @@ def handle_user(user_id):
             'id': user.id,
             'username': user.user_name,
             'email': user.email,
-            'db_url': user.db_url,  # Inclure le db_url dans la réponse
+           
             'team': {
                 'id': user.team.id if user.team else None,
                 'name': user.team.name if user.team else None,

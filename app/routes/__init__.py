@@ -1,6 +1,7 @@
 # rassemble les blueprints
 from .players import bp as players
-from .teams import bp as teams
+from .teams_career import bp as teams_career
+
 from .games import bp as games
 from .transfers import bp as transfers
 from .events import bp as events 

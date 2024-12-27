@@ -35,8 +35,28 @@ def login():
 
         return jsonify({
             'message': 'Connexion réussie.',
-            'token': token
+            'token': token,
+            'user': {
+                'id': user.id,
+                'user_name': user.user_name,
+                'email': user.email,
+                'team_id': user.team_id  # Ajout de team_id dans la réponse
+            }
         }), 200
 
     except Exception as e:
         return jsonify({'error': 'Erreur lors de la génération du token.'}), 500
+@bp.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    """Récupérer les informations de l'utilisateur par ID."""
+    user = UserProfile.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Utilisateur non trouvé.'}), 404
+
+    # Construire la réponse JSON avec toutes les données nécessaires
+    return jsonify({
+        'id': user.id,
+        'username': user.user_name,
+        'email': user.email,
+        'team_id': user.team_id  # Vérifie que ce champ est bien inclus
+    }), 200

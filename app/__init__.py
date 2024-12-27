@@ -26,9 +26,10 @@ def create_app():
    
 
     # Importez et enregistrez les blueprints après l'initialisation de db
-    from app.routes import players, teams, gamestats, auth, games, transfers, users, events, career
+    from app.routes import players, teams_career, gamestats, auth, games, transfers, users, events, career
     app.register_blueprint(players)
-    app.register_blueprint(teams)
+    
+    app.register_blueprint(teams_career)
     app.register_blueprint(games)
     app.register_blueprint(transfers)
     app.register_blueprint(events)
