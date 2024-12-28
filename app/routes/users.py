@@ -190,7 +190,8 @@ def handle_user(user_id):
                 'email': user.email,
                 'team': {
                     'id': team.id,
-                    'name': team.name
+                    'name': team.name,
+                    'budget':team.budget,
                 }
             }
         }), 200

@@ -2,7 +2,9 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
-from app.models import Team, UserProfile
+from datetime import datetime, timedelta
+
+from app.models import Team, UserProfile, Game, Season
 from flask_cors import cross_origin
 # Modifier le nom du blueprint ici pour éviter le conflit
 bp = Blueprint('teams_career', __name__, url_prefix='/career/teams')
@@ -186,47 +188,42 @@ def get_schedule(season_id):
 
 # Nouvelle route pour générer le calendrier
 @bp.route('/schedule/create', methods=['POST'])
-def create_schedule():
-    """Génère un calendrier pour une saison spécifique"""
+def create_season_schedule():
+    username = request.args.get('username')
+    user_db_url = request.args.get('user_db_url')
+    data = request.json
+
+    Season, Team = get_models(username, user_db_url)
+
+    season = Season.query.get(data['season_id'])
+    if not season:
+        return jsonify({"error": "Saison non trouvée"}), 404
+
+    teams = Team.query.all()
+    if not teams:
+        return jsonify({"error": "Pas d'équipes disponibles pour générer le calendrier"}), 404
+
+    start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+
     try:
-        session = get_career_session()
-        data = request.get_json()
-
-        if not data:
-            return jsonify({'error': 'Données requises manquantes'}), 400
-
-        season_id = data.get('season_id')
-        start_date_str = data.get('start_date')
-
-        if not season_id or not start_date_str:
-            return jsonify({'error': 'season_id et start_date sont requis'}), 400
-
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-
-        # Récupérer les équipes de la base de données
-        teams = session.query(Team).all()
-
-        if not teams:
-            return jsonify({'error': 'Aucune équipe disponible pour générer un calendrier'}), 404
-
         # Générer le calendrier
-        schedule = generate_season_schedule(season_id, teams, start_date)
+        schedule = generate_season_schedule(data['season_id'], teams, start_date)
 
-        # Enregistrer les matchs dans la base de données
+        # Log des matchs avant insertion
+        for game in schedule:
+            print(f"Insertion prévue : {game}")
+
+        # Enregistrer dans la base de données
         for game in schedule:
             new_game = Game(**game)
-            session.add(new_game)
+            db.session.add(new_game)
 
-        session.commit()
-
-        return jsonify({'message': 'Calendrier généré avec succès'}), 201
+        db.session.commit()
+        return jsonify({"message": "Calendrier généré avec succès"}), 201
 
     except Exception as e:
-        session.rollback()
-        return jsonify({'error': f'Erreur lors de la génération du calendrier: {str(e)}'}), 500
-    finally:
-        session.close()
-
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 @bp.route('/<int:team_id>/players', methods=['GET'])
 def get_players_by_team(team_id):
@@ -284,48 +281,85 @@ def get_matches_by_team(team_id):
 
 @bp.route('/games', methods=['POST'])
 def create_all_games():
-    """Crée tous les matchs pour une saison spécifique."""
+    """
+    Crée tous les matchs pour une saison spécifique dans la base de données `career_basket`.
+    """
+    session = get_career_session()  # Ouvre une session avec la base de données career_basket
+
     try:
-        session = get_career_session()
         data = request.get_json()
 
         # Vérifie que les données nécessaires sont présentes
-        required_fields = ['season_id', 'start_date']
+        required_fields = ['season_id']
         if not all(field in data for field in required_fields):
             return jsonify({'error': f'Champs requis manquants : {required_fields}'}), 400
 
         season_id = data['season_id']
-        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+
+        # Vérifie si la saison existe
+        season = session.query(Season).filter_by(id=season_id).first()
+        if not season:
+            return jsonify({'error': f'La saison avec l\'ID {season_id} n\'existe pas.'}), 404
+
+        # Détermine les dates de début et de fin à partir de la saison
+        start_date = datetime(season.start_year, 1, 1)  # Début de l'année de la saison
+        end_date = datetime(season.end_year, 12, 31)  # Fin de l'année de la saison
+
+        # Log des dates de début et de fin de la saison
+        print(f"Saison {season_id}: Début - {start_date.strftime('%Y-%m-%d')}, Fin - {end_date.strftime('%Y-%m-%d')}")
 
         # Récupérer toutes les équipes
         teams = session.query(Team).all()
-
         if not teams or len(teams) < 2:
             return jsonify({'error': 'Pas assez d\'équipes pour générer un calendrier'}), 400
 
         # Générer les matchs aller-retour pour toutes les équipes
         schedule = []
         num_teams = len(teams)
+        exceeded_dates = []  # Liste pour stocker les matchs dépassant la plage de la saison
 
-        for i in range(num_teams):
-            for j in range(i + 1, num_teams):
-                # Match aller
-                schedule.append({
-                    'season_id': season_id,
-                    'home_team_id': teams[i].id,
-                    'away_team_id': teams[j].id,
-                    'date': start_date.strftime('%Y-%m-%d')
-                })
-                start_date += timedelta(days=7)  # Espacement entre les matchs
+        current_date = start_date  # Initialisation de la date de départ
 
-                # Match retour
-                schedule.append({
-                    'season_id': season_id,
-                    'home_team_id': teams[j].id,
-                    'away_team_id': teams[i].id,
-                    'date': start_date.strftime('%Y-%m-%d')
-                })
-                start_date += timedelta(days=7)
+        # Générer les matchs pour toutes les équipes
+        round_counter = 1  # Compteur de journée (round)
+        while current_date <= end_date:
+            # Si la date dépasse la fin de la saison, arrête la génération de matchs
+            if current_date > end_date:
+                break
+
+            # Pour chaque équipe, on génère les matchs aller-retour
+            for i in range(num_teams):
+                for j in range(i + 1, num_teams):
+                    # Vérifie si la date du match dépasse la fin de la saison
+                    if current_date > end_date:
+                        exceeded_dates.append(f"Match entre {teams[i].name} et {teams[j].name} prévu pour {current_date.strftime('%Y-%m-%d')} dépasse la fin de la saison.")
+                        break  # Sortir de la boucle si une date dépasse la plage
+
+                    # Match aller
+                    print(f"Génération du match aller entre {teams[i].name} et {teams[j].name} à {current_date.strftime('%Y-%m-%d')}")
+                    schedule.append({
+                        'season_id': season_id,
+                        'home_team_id': teams[i].id,
+                        'away_team_id': teams[j].id,
+                        'date': current_date.strftime('%Y-%m-%d')
+                    })
+
+                    # Match retour
+                    print(f"Génération du match retour entre {teams[j].name} et {teams[i].name} à {current_date.strftime('%Y-%m-%d')}")
+                    schedule.append({
+                        'season_id': season_id,
+                        'home_team_id': teams[j].id,
+                        'away_team_id': teams[i].id,
+                        'date': current_date.strftime('%Y-%m-%d')
+                    })
+
+            # Passe au jour suivant (ajoute 7 jours pour la prochaine journée de matchs)
+            current_date += timedelta(days=7)  # Passe à la prochaine journée
+
+            round_counter += 1  # Incrémente le compteur de journée (round)
+
+        if exceeded_dates:
+            return jsonify({'error': 'Certaines dates dépassent la plage de la saison.', 'details': exceeded_dates}), 400
 
         # Insérer tous les matchs dans la base de données
         for game in schedule:
@@ -339,5 +373,6 @@ def create_all_games():
     except Exception as e:
         session.rollback()
         return jsonify({'error': f'Erreur lors de la création des matchs : {str(e)}'}), 500
+
     finally:
-        session.close()
+        session.close()  # Toujours fermer la session après la fin de l'opération
