@@ -58,5 +58,9 @@ def get_user(user_id):
         'id': user.id,
         'username': user.user_name,
         'email': user.email,
-        'team_id': user.team_id  # Vérifie que ce champ est bien inclus
+      "team": {
+            "id": user.team.id,
+            "name": user.team.name,
+            "logo": user.team.logo,
+        } if user.team else None,
     }), 200
