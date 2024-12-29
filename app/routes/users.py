@@ -158,7 +158,8 @@ def handle_user(user_id):
             'team': {
                 'id': user.team.id if user.team else None,
                 'name': user.team.name if user.team else None,
-                'logo': user.team.logo if user.team else None
+                'logo': user.team.logo if user.team else None,
+                'budget': user.team.budget if user.team else None
             } if user.team else None
         }), 200
 
